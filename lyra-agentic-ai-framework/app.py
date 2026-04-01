@@ -259,6 +259,28 @@ convert_png_to_jpg("assets/with_ai.png", "assets/with_ai.jpg")
 print("✅ Conversion complete")
 
 
+#------------------------------------------------------
+from azure.storage.blob import BlobServiceClient
+import pandas as pd
+import io
+import os
+import streamlit as st
+
+@st.cache_data
+def load_from_blob(file_name):
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    if connection_string is None:
+        raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable is not set")
+    
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    container_client = blob_service_client.get_container_client("lyra-data")
+    
+    blob_client = container_client.get_blob_client(file_name)
+    data = blob_client.download_blob().readall()
+    
+    return pd.read_csv(io.BytesIO(data))
+
+
 
 # -------------------------------------------------
 # STREAMLIT CONFIG
@@ -829,7 +851,10 @@ with tabs[2]:
 
                     st.info(f"⚡ Auto-profiling {table}...")
 
-                    df = pd.read_csv(best["path"])
+                    try:
+                        df = load_from_blob(best["path"].name)
+                    except Exception:
+                        df = pd.read_csv(best["path"])
 
                     # STEP 1 — Ensure RecordId
                     df = ensure_recordid(df)

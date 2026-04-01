@@ -7,3 +7,4 @@ snowflake-connector-python>=3.6
 cryptography>=41.0
 python-dotenv
 pytest>=7.0
+azure-storage-blob
