@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / Secrets
+.env
+.env.local
+# Snowflake Key Pair
+lyra_key.p8
+
+# Data files (generated at runtime)
+data/result.csv
+data/dq_audit.jsonl
+
+# Large generated data
+dummy_data_profiler_*.csv
+
+# Claude Code
+.claude/
+
+# Data files
+data/raw/
+data/output/
+data/profiled/
+data/scenarios/
+
+# OS
+.DS_Store
+
+# Keys
+*.p8
+*.pub

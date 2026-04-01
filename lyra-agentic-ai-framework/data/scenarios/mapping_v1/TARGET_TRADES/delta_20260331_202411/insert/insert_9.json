@@ -1,0 +1,92 @@
+{
+  "scenario_id": "9765dded-7dc8-4585-88cd-7bd9aac0f780",
+  "target_table": "TARGET_TRADES",
+  "business_keys": [
+    "recordid",
+    "tradeid",
+    "instrumentid",
+    "counterpartyid",
+    "traderid",
+    "recordid_SRC_POSITIONS",
+    "positionid",
+    "recordid_SRC_COUNTERPARTY",
+    "recordid_REF_COUNTRY",
+    "recordid_REF_INSTRUMENT"
+  ],
+  "operation": "INSERT",
+  "before_image": {},
+  "after_image": {
+    "TRADE_ID": "TRD00000009",
+    "POSITION_ID": "POS000000009",
+    "COUNTERPARTY_TYPE": "CORP",
+    "COUNTRY_NAME": "Country_C00009",
+    "INSTRUMENT_DESC": "Instrument INS000009",
+    "TRADE_STATUS": "NEW",
+    "CREATED_TS": "2026-03-31 20:24:11",
+    "recordid": 10,
+    "tradeid": "TRD00000009",
+    "instrumentid": "INS010998",
+    "counterpartyid": "CP036970",
+    "traderid": 1712,
+    "recordid_SRC_POSITIONS": 10,
+    "positionid": "POS000000009",
+    "recordid_SRC_COUNTERPARTY": 10,
+    "recordid_REF_COUNTRY": 10,
+    "recordid_REF_INSTRUMENT": 10,
+    "TRADE_VALUE_USD": null
+  },
+  "metadata": {
+    "joins": [
+      {
+        "type": "INNER",
+        "sql": "SRC_TRADES T INNER JOIN SRC_POSITIONS P ON T.TradeId= P.TradeId  INNER JOIN SRC_COUNTERPARTY C ON T.CounterpartyId = C.CounterpartyId",
+        "keys": [
+          {
+            "left_table": "T",
+            "left_column": "TRADEID",
+            "right_table": "P",
+            "right_column": "TRADEID"
+          },
+          {
+            "left_table": "T",
+            "left_column": "COUNTERPARTYID",
+            "right_table": "C",
+            "right_column": "COUNTERPARTYID"
+          }
+        ]
+      },
+      {
+        "type": "LEFT",
+        "sql": "LEFT JOIN REF_COUNTRY RC ON  C.COUNTRY_CD = RC.COUNTRY_CD LEFT JOIN REF_INSTRUMENT RI ON T.INSTRUMENT_CD = RI.INSTRUMENT_CD",
+        "keys": [
+          {
+            "left_table": "C",
+            "left_column": "COUNTRY_CD",
+            "right_table": "RC",
+            "right_column": "COUNTRY_CD"
+          },
+          {
+            "left_table": "T",
+            "left_column": "INSTRUMENT_CD",
+            "right_table": "RI",
+            "right_column": "INSTRUMENT_CD"
+          }
+        ]
+      }
+    ],
+    "filters": [
+      "CASE\n  WHEN T.TRADE_STATUS = 'NEW' THEN 'NEW'\n  WHEN T.TRADE_STATUS = 'AMEND' THEN 'AMEND'\n  WHEN T.TRADE_STATUS = 'CANCEL' THEN 'INACTIVE'                                                          \n  ELSE 'ACTIVE'\nAND T.TRADE_DATE >= '2020-01-01' AND C.COUNTERPARTY_TYPE <> 'TEST'",
+      "P.QUANTITY <> 0 AND T.Price > 0"
+    ],
+    "target_columns": [
+      "TRADE_ID",
+      "POSITION_ID",
+      "COUNTERPARTY_TYPE",
+      "COUNTRY_NAME",
+      "INSTRUMENT_DESC",
+      "TRADE_VALUE_USD",
+      "TRADE_STATUS",
+      "CREATED_TS"
+    ]
+  }
+}

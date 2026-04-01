@@ -1,0 +1,75 @@
+{
+  "scenario_id": "845ba8b7-be98-40ed-83cd-543f86df4da3",
+  "target_table": "TARGET_TRADES",
+  "business_keys": [
+    "recordid_SRC_POSITIONS",
+    "positionid"
+  ],
+  "operation": "DELETE",
+  "before_image": {
+    "TRADE_ID": "TRD00000000",
+    "POSITION_ID": "POS000197511",
+    "COUNTERPARTY_TYPE": "FUND",
+    "COUNTRY_NAME": "Country_C00000",
+    "INSTRUMENT_DESC": "Instrument INS000000",
+    "TRADE_STATUS": "ACTIVE",
+    "CREATED_TS": "2026-03-29 15:34:19",
+    "recordid_SRC_POSITIONS": 197512,
+    "positionid": "POS000197511",
+    "TRADE_VALUE_USD": null
+  },
+  "after_image": {},
+  "metadata": {
+    "joins": [
+      {
+        "type": "INNER",
+        "sql": "SRC_TRADES T INNER JOIN SRC_POSITIONS P ON T.TradeId= P.TradeId  INNER JOIN SRC_COUNTERPARTY C ON T.CounterpartyId = C.CounterpartyId",
+        "keys": [
+          {
+            "left_table": "T",
+            "left_column": "TRADEID",
+            "right_table": "P",
+            "right_column": "TRADEID"
+          },
+          {
+            "left_table": "T",
+            "left_column": "COUNTERPARTYID",
+            "right_table": "C",
+            "right_column": "COUNTERPARTYID"
+          }
+        ]
+      },
+      {
+        "type": "LEFT",
+        "sql": "LEFT JOIN REF_COUNTRY RC ON  C.COUNTRY_CD = RC.COUNTRY_CD LEFT JOIN REF_INSTRUMENT RI ON T.INSTRUMENT_CD = RI.INSTRUMENT_CD",
+        "keys": [
+          {
+            "left_table": "C",
+            "left_column": "COUNTRY_CD",
+            "right_table": "RC",
+            "right_column": "COUNTRY_CD"
+          },
+          {
+            "left_table": "T",
+            "left_column": "INSTRUMENT_CD",
+            "right_table": "RI",
+            "right_column": "INSTRUMENT_CD"
+          }
+        ]
+      }
+    ],
+    "filters": [
+      "CASE\n  WHEN T.TRADE_STATUS = 'NEW' THEN 'NEW'\n  WHEN T.TRADE_STATUS = 'AMEND' THEN 'AMEND'\n  WHEN T.TRADE_STATUS = 'CANCEL' THEN 'INACTIVE'                                                          \n  ELSE 'ACTIVE'\nAND T.TRADE_DATE >= '2020-01-01' AND C.COUNTERPARTY_TYPE <> 'TEST'"
+    ],
+    "target_columns": [
+      "TRADE_ID",
+      "POSITION_ID",
+      "COUNTERPARTY_TYPE",
+      "COUNTRY_NAME",
+      "INSTRUMENT_DESC",
+      "TRADE_VALUE_USD",
+      "TRADE_STATUS",
+      "CREATED_TS"
+    ]
+  }
+}

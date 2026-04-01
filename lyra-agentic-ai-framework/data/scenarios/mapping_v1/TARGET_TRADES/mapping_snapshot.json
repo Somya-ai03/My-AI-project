@@ -1,0 +1,33 @@
+{
+  "mapping_hash": "3398fc2bcc68a12c380904c71c3e3169",
+  "target_columns": [
+    "COUNTERPARTY_TYPE",
+    "COUNTRY_NAME",
+    "CREATED_TS",
+    "INSTRUMENT_DESC",
+    "POSITION_ID",
+    "TRADE_ID",
+    "TRADE_STATUS",
+    "TRADE_VALUE_USD"
+  ],
+  "column_rules": [
+    "COUNTERPARTY_TYPE=CounterpartyType | Direct mapping",
+    "COUNTRY_NAME=COUNTRY_CD | Lookup via REF_COUNTRY",
+    "CREATED_TS=SYSDATE() | System generated",
+    "INSTRUMENT_DESC=INSTRUMENT_CD | Lookup via REF_INSTRUMENT",
+    "POSITION_ID=PositionId | Direct mapping",
+    "TRADE_ID=TradeId | Direct mapping",
+    "TRADE_STATUS=TRADE_STATUS | CASE WHEN CANCELLED THEN 'INACTIVE'",
+    "TRADE_VALUE_USD=Price * Quantity | Currency normalization"
+  ],
+  "joins": [
+    "[{'left_table': 'T', 'left_column': 'TRADEID', 'right_table': 'P', 'right_column': 'TRADEID'}, {'left_table': 'T', 'left_column': 'COUNTERPARTYID', 'right_table': 'C', 'right_column': 'COUNTERPARTYID'}]",
+    "[{'left_table': 'C', 'left_column': 'COUNTRY_CD', 'right_table': 'RC', 'right_column': 'COUNTRY_CD'}, {'left_table': 'T', 'left_column': 'INSTRUMENT_CD', 'right_table': 'RI', 'right_column': 'INSTRUMENT_CD'}]"
+  ],
+  "filters": [
+    "CASE\n  WHEN T.TRADE_STATUS = 'NEW' THEN 'NEW'\n  WHEN T.TRADE_STATUS = 'AMEND' THEN 'AMEND'\n  WHEN T.TRADE_STATUS = 'CANCEL' THEN 'INACTIVE'                                                          \n  ELSE 'ACTIVE'\nAND T.TRADE_DATE >= '2020-01-01' AND C.COUNTERPARTY_TYPE <> 'TEST'",
+    "P.QUANTITY <> 0 AND T.Price > 0"
+  ],
+  "generated_at": "2026-03-31T20:24:11.081779",
+  "scenario_count": 75
+}
