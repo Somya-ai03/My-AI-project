@@ -1,4 +1,6 @@
-# Python
+# ===============================
+# 🐍 Python
+# ===============================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,49 +10,65 @@ dist/
 build/
 .eggs/
 
-# Virtual environments
+# ===============================
+# 🌱 Virtual Environments
+# ===============================
 venv/
 .venv/
 env/
 
-# IDE
+# ===============================
+# 🧠 IDE / Editor
+# ===============================
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS
+# ===============================
+# 💻 OS Files
+# ===============================
 .DS_Store
 Thumbs.db
 
-# Jupyter
+# ===============================
+# 📓 Jupyter
+# ===============================
 .ipynb_checkpoints/
 
-# Environment / Secrets
+# ===============================
+# 🔐 Environment / Secrets
+# ===============================
 .env
 .env.local
-# Snowflake Key Pair
+*.p8
+*.pub
 lyra_key.p8
 
-# Data files (generated at runtime)
-data/result.csv
-data/dq_audit.jsonl
-
-# Large generated data
-dummy_data_profiler_*.csv
-
-# Claude Code
-.claude/
-
-# Data files
+# ===============================
+# 📊 Data (CRITICAL FIX)
+# ===============================
+# Generic data folders
+data/
 data/raw/
 data/output/
 data/profiled/
 data/scenarios/
 
-# OS
-.DS_Store
+# 🔥 IMPORTANT: Your actual project data path
+lyra-agentic-ai-framework/data/
 
-# Keys
-*.p8
-*.pub
+# 🔥 Remove old/duplicate projects
+practice_files/
+
+# ===============================
+# 📦 Large / Generated Files
+# ===============================
+*.zip
+*.csv
+dummy_data_profiler_*.csv
+
+# ===============================
+# 🤖 Misc / Tools
+# ===============================
+.claude/
