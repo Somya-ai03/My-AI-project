@@ -1,6 +1,6 @@
 # core/ai/ai_engine.py
 """
-AI-powered features for Lyra.
+AI-powered features for AI tool.
 All functions gracefully degrade when OpenAI key is absent.
 """
 
@@ -222,7 +222,7 @@ def ai_chat(
     """
     Context-aware chat assistant.
     """
-    system = f"""You are Lyra AI, an assistant for the Lyra Agentic Data Testing Platform.
+    system = f"""You are AI assistant, an assistant for the Agentic Data Testing Platform.
 You help users understand their data quality results, mapping coverage, and test scenarios.
 
 Current session context:
@@ -385,7 +385,7 @@ def ai_generate_report(
     system = """You are a test report generator. Create a professional markdown test report
 covering all available data. Include:
 
-# Lyra Test Report
+# AI tool Test Report
 
 ## Executive Summary
 (1-2 sentences overview)

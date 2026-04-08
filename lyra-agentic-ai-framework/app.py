@@ -268,9 +268,9 @@ import streamlit as st
 
 @st.cache_data
 def load_from_blob(file_name):
-    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    connection_string = os.getenv("AZURESTORAGE_CONNECTION_STRING")
     if connection_string is None:
-        raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable is not set")
+        raise ValueError("AZURESTORAGE_CONNECTION_STRING environment variable is not set")
     
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     container_client = blob_service_client.get_container_client("lyra-data")
@@ -447,206 +447,85 @@ tabs = st.tabs([
 
 
 # =================================================
-# TAB 1 — ARCHITECTURE & WORKFLOW
-# =================================================
+
+# TAB 1 — ARCHITECTURE (DEMO-OPTIMIZED)
+
+# ================================================= 
+
+from pathlib import Path
+import streamlit as st
+
+# ✅ MUST BE FIRST LINE
+st.set_page_config(layout="wide")
 
 with tabs[0]:
 
-    # =================================================
-    # 🎯 HERO
-    # =================================================
     st.markdown("# 🏗️ Intelligent Data Validation Platform")
 
     st.markdown(
         """
         <div style="padding:14px;border-radius:12px;
         background:linear-gradient(90deg,#1f3c88,#0f2027);
-        color:white;font-size:16px">
-        Transform Dev & UAT validation into an <b>automated, intelligent pipeline</b>  
-        with structured testing and AI-powered insights.
+        color:white;">
+        Transforming manual validation into an automated, AI-powered pipeline
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    st.info("💡 Reducing manual validation effort while improving coverage visibility and accuracy")
-
     st.markdown("---")
 
-    # =================================================
-    # 🧠 INTERACTIVE FLOW
-    # =================================================
-    st.subheader("🧠 Interactive Validation Flow")
-    st.caption("Click a stage to explore the system")
+    st.subheader("🧭 From Current → AI-Powered Validation")
 
-    stages = [
-        ("Mapping", "📘"),
-        ("Scenarios", "🧩"),
-        ("ATF", "⚙️"),
-        ("Validation", "❄️"),
-        ("AI Insights", "🤖"),
-    ]
-
-    if "selected_stage" not in st.session_state:
-        st.session_state.selected_stage = "Mapping"
-
-    cols = st.columns(len(stages))
-
-    for i, (name, icon) in enumerate(stages):
-        is_active = st.session_state.selected_stage == name
-
-        label = f"{icon}\n{name}"
-        if is_active:
-            label = f"🔷 {icon}\n{name}"
-
-        with cols[i]:
-            if st.button(label, key=f"flow_{i}"):
-                st.session_state.selected_stage = name
-
-    st.markdown("➡️ ➡️ ➡️ ➡️ ➡️")
-
-    # =================================================
-    # 🔍 STAGE DETAILS
-    # =================================================
-    selected = st.session_state.selected_stage
-
-    st.markdown("---")
-    st.markdown(f"### 🔎 {selected}")
-
-    if selected == "Mapping":
-        st.info("Extract transformation logic from mapping documents")
-        st.markdown("""
-        - Identify joins, filters, transformations  
-        - Build structured metadata  
-        - Prepare input for scenario generation  
-        """)
-
-    elif selected == "Scenarios":
-        st.info("Generate and evolve validation scenarios intelligently")
-        st.markdown("""
-        - Rule-based scenario generation  
-        - Supports continuous incremental updates across mapping versions  
-        - Avoids duplication of existing scenarios  
-        - Focuses only on new or changed logic  
-        """)
-
-    elif selected == "ATF":
-        st.info("Execute validation workflows using existing framework")
-        st.markdown("""
-        - Integrates with Dev/UAT testing  
-        - Uses ATF as execution backbone  
-        - No disruption to existing processes  
-        """)
-
-    elif selected == "Validation":
-        st.info("Validate outputs directly in Snowflake")
-        st.markdown("""
-        - Compare expected vs actual results  
-        - Detect mismatches quickly  
-        - Ensure transformation accuracy  
-        """)
-
-    elif selected == "AI Insights":
-        st.info("Enhance validation with intelligent insights")
-        st.markdown("""
-        - Detect coverage gaps  
-        - Suggest additional scenarios  
-        - Assist in root cause analysis  
-        """)
-
-    st.progress((stages.index((selected, next(icon for n, icon in stages if n == selected))) + 1) / len(stages))
-
-    st.markdown("---")
-
-    # =================================================
-    # 🔄 VISUAL TRANSFORMATION
-    # =================================================
-    st.subheader("🧭 Transformation Journey")
-    st.caption("From manual, fragmented validation → to structured intelligent testing")
+    BASE_DIR = Path(__file__).parent
+    img1 = BASE_DIR / "assets" / "current_process.jpg"
+    img2 = BASE_DIR / "assets" / "with_ai.jpg"
 
     col1, col2 = st.columns(2)
 
+    from PIL import Image
+
+    img1_pil = Image.open(img1)
+    img2_pil = Image.open(img2)
+
+    col1, col2 = st.columns([1,1], gap="large")
+
     with col1:
-        st.markdown("### 🔴 Current Process")
-        if Path("assets/current_process.jpg").exists():
-            st.image("assets/current_process.jpg", use_container_width=True)
-        else:
-            st.warning("⚠️ current_process.jpg not found in assets")
+        st.markdown("### 🔴 Current Validation Process")
+        st.image(img1_pil, width= 1000)
 
     with col2:
-        st.markdown("### 🟢 Enhanced Platform")
-        if Path("assets/with_ai.jpg").exists():
-            st.image("assets/with_ai.jpg", use_container_width=True)
-        else:
-            st.warning("⚠️ with_ai.jpg not found in assets")
+        st.markdown("### 🟢 AI-Powered Validation Approach")
+        st.image(img2_pil, width=1000)
+        st.markdown("---")
 
-    st.markdown("---")
-
-    # =================================================
-    # 🔍 COVERAGE
-    # =================================================
-    with st.expander("🔍 Coverage & Visibility"):
-
-        st.markdown("""
-        - Understand which columns are tested  
-        - Identify uncovered transformations  
-        - Detect validation gaps early  
-        - Improve testing completeness  
-        """)
-
-    # =================================================
-    # ⚙️ ATF INTEGRATION (SAFE)
-    # =================================================
-    with st.expander("⚙️ Integration with ATF"):
-
-        st.markdown("""
-        This platform works alongside ATF and enhances validation workflows.
-
-        - Improves scenario generation  
-        - Enhances coverage visibility  
-        - Supports Snowflake validation  
-        - Provides AI-assisted insights  
-
-        👉 No changes to existing ATF processes required  
-        """)
-
-    # =================================================
     # 📊 IMPACT
-    # =================================================
-    st.subheader("📊 Business Impact")
+    st.subheader("📊 What Changes")
 
     c1, c2, c3 = st.columns(3)
 
-    c1.metric("Scenario Generation", "Automated")
-    c2.metric("Validation Effort", "Reduced")
-    c3.metric("Coverage Visibility", "End-to-End")
+    c1.metric("Manual Effort", "Reduced")
+    c2.metric("Automation", "High")
+    c3.metric("Coverage", "End-to-End")
+
+    st.markdown("---")
+
+# 🧱 TECH STACK
+    st.subheader("🧱 Tech Stack")
 
     st.markdown("""
-    - Faster validation cycles  
-    - Reduced manual effort  
-    - Improved confidence in data quality  
-    - Scalable validation across evolving systems  
-    """)
+**Streamlit** • **Python** • **Snowflake** • **Azure** • **AI**
+""")
 
     st.markdown("---")
 
-    # =================================================
-    # 🧱 TECH STACK
-    # =================================================
-    st.subheader("🧱 Technology Stack")
+# ✨ FINAL MESSAGE
+    st.success("🚀 Enabling faster, scalable, and intelligent data validation")
 
-    t1, t2, t3 = st.columns(3)
 
-    t1.markdown("**Frontend**\n\nStreamlit")
-    t2.markdown("**Backend**\n\nPython\nScenario Engine")
-    t3.markdown("**Ecosystem**\n\nSnowflake\nATF\nOpenAI\nAzure")
 
-    st.markdown("---")
 
-    # =================================================
-    # 🎯 FINAL MESSAGE
-    # =================================================
-    st.success("✨ Intelligent, scalable validation for modern data pipelines")
+
 
 
 
@@ -769,6 +648,23 @@ with tabs[1]:
                             st.info(f"💡 {s}")
 
 
+ #---------------using to detect latest timestamp row for profiling-----------------------------------                           
+
+import os
+
+def should_reprofile(raw_path, profiled_path):
+    """
+    Returns True if raw data is newer than profiled data
+    """
+
+    if not profiled_path.exists():
+        return True  # no profiled file → must profile
+
+    raw_time = os.path.getmtime(raw_path)
+    profiled_time = os.path.getmtime(profiled_path)
+
+    return raw_time > profiled_time
+
 
 # =================================================
 # TAB 3 — PROFILING (with AI DQ Summary + Anomalies + Auto-Discovery)
@@ -801,6 +697,7 @@ with tabs[2]:
     for table in source_tables:
 
         with st.expander(f"📂 {table}", expanded=False):
+           
 
             best = find_best_source_file(table, DATA_DIR)
 
@@ -816,7 +713,12 @@ with tabs[2]:
             # =================================================
             # CASE 1 — PROFILED FILE EXISTS → LOAD + COVERAGE
             # =================================================
-            if best["source_type"] == "profiled":
+            profiled_path = best["path"]
+
+            raw_file = find_best_source_file(table, DATA_DIR)
+            raw_path = raw_file["path"] if raw_file else None
+
+            if best["source_type"] == "profiled" and raw_path and not should_reprofile(raw_path, profiled_path):
 
                 df = pd.read_csv(best["path"])
                 df.columns = [c.strip().lower() for c in df.columns]
@@ -847,7 +749,7 @@ with tabs[2]:
             # =================================================
             elif best["source_type"] in ("raw", "sample"):
 
-                if table not in st.session_state.profiled_tables:
+                if table not in st.session_state.profiled_tables or should_reprofile(raw_path, profiled_path):
 
                     st.info(f"⚡ Auto-profiling {table}...")
 
@@ -855,6 +757,9 @@ with tabs[2]:
                         df = load_from_blob(best["path"].name)
                     except Exception:
                         df = pd.read_csv(best["path"])
+
+                    # 🔥 ADD THIS LINE
+                       # df = apply_latest_batch_logic(df)
 
                     # STEP 1 — Ensure RecordId
                     df = ensure_recordid(df)
