@@ -945,7 +945,7 @@ def generate_delete_scenarios(df, num_rows, pk_columns, output_dir="scenarios/de
     return generated_files
 
 
-def generate_scenario_files(df, num_inserts=5, num_updates=5, num_deletes=3,
+def generate_scenario_files(df, num_inserts=2, num_updates=2, num_deletes=1,
                            pk_columns=None, base_output_dir="scenarios"):
     """
     Generate separate JSON files for INSERT, UPDATE, DELETE operations.
@@ -1121,10 +1121,10 @@ def _resolve_target_column_value(rule: str, row: dict, df_columns: list) -> Any:
                 return None
 
 
-        # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # ✅ SIMPLE ARITHMETIC WITHOUT ALIAS
     # Supports: QTY * PRICE, LINE_AMOUNT / QTY
-        # ---------------------------------------------------------
+     # ---------------------------------------------------------
     simple_arith = re.match(
     r'^(\w+)\s*([*+\-/])\s*(\w+)$',
     rule_stripped,
@@ -1365,8 +1365,44 @@ def _build_target_row(row: dict, target_columns: dict, pk_cols: list) -> dict:
 
     return target_row
 
-    
 
+
+ #------------ Update existing scenarios--------------------------------   
+def merge_update_scenarios(existing_scenarios, result_df, pk_cols):
+    updated = []
+    new_scenarios = []
+
+    # Build lookup from existing scenarios
+    existing_lookup = {}
+    for sc in existing_scenarios:
+        key = tuple(sc.get(pk) for pk in pk_cols)
+        existing_lookup[key] = sc
+
+    for _, row in result_df.iterrows():
+        key = tuple(row.get(pk) for pk in pk_cols)
+
+        if key in existing_lookup:
+            # 🔄 UPDATE EXISTING
+            sc = existing_lookup[key]
+
+            sc["after_image"] = {
+                col: row.get(col)
+                for col in sc.get("after_image", {}).keys()
+            }
+
+            sc["updated"] = True
+            updated.append(sc)
+
+        else:
+            # 🆕 CREATE NEW
+            new_scenarios.append({
+                "scenario_id": str(uuid.uuid4()),
+                "operation": "INSERT",
+                "after_image": row.to_dict(),
+                "created_new": True
+            })
+
+    return updated, new_scenarios
 
 
 
@@ -1563,6 +1599,11 @@ def build_target_scenarios(mapping_path, target_meta=None, output_dir=None):
 
     execution_log["row_counts"]["after_joins"] = len(result_df)
     print(f"\nJoined result rows: {len(result_df)}")
+    MAX_SCENARIOS = 5
+
+    if result_df is not None and len(result_df) > MAX_SCENARIOS:
+        print(f"⚡ Limiting result_df to {MAX_SCENARIOS} rows for demo")
+    result_df = result_df.head(MAX_SCENARIOS)
 
     # -----------------------------
     # TARGET NAME & KEYS
@@ -1813,6 +1854,15 @@ def build_target_scenarios(mapping_path, target_meta=None, output_dir=None):
     "columns_total": len(target_columns)
 }
 
+    # =============================================
+    # 🚀 DEMO MODE LIMIT (HARDCODED)
+    # =============================================
+    MAX_SCENARIOS = 5
+
+    if result_df is not None and len(result_df) > MAX_SCENARIOS:
+        print(f"⚡ Limiting scenarios to {MAX_SCENARIOS} for demo")
+        result_df = result_df.head(MAX_SCENARIOS)
+    
     print(f"\nGenerated {total} scenarios in {scenario_dir}")
 
     return result_df, scenario_dir, execution_log

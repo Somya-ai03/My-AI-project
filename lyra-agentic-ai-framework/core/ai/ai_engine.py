@@ -6,8 +6,10 @@ All functions gracefully degrade when OpenAI key is absent.
 
 import json
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import pandas as pd
+from openai.types.chat import ChatCompletionMessageParam
+from openai import AzureOpenAI
 
 
 # -------------------------------------------------
@@ -19,25 +21,50 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
+        api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+        endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+        
+
+        if not api_key or not endpoint:
             return None
-        from openai import OpenAI
-        _client = OpenAI(api_key=api_key)
+
+        
+
+        _client = AzureOpenAI(
+            api_key=api_key,
+            api_version="2024-02-15-preview",
+            azure_endpoint=endpoint,
+            
+        )
     return _client
 
 
 def ai_available() -> bool:
-    """Check if OpenAI is configured."""
-    return os.environ.get("OPENAI_API_KEY") is not None
+    return (
+        os.environ.get("AZURE_OPENAI_API_KEY") is not None and
+        os.environ.get("AZURE_OPENAI_ENDPOINT") is not None and
+        os.environ.get("AZURE_CHAT_DEPLOYMENT") is not None
+
+    )
 
 
-def _chat(system: str, user: str, json_mode: bool = False, model: str = "gpt-4.1-mini") -> Optional[str]:
-    """Low-level chat call with error handling."""
+def _chat(system: str, user: str, json_mode: bool = False, model: Optional[str] = None) -> Optional[str]:
     client = _get_client()
     if client is None:
         return None
+
+    # ✅ Always resolve model here (single source of truth)
+    model = model or os.getenv("AZURE_CHAT_DEPLOYMENT")
+    print(model)
+
+    if not model:
+        return "[AI Error] Missing AZURE_CHAT_DEPLOYMENT"
+
     try:
+        # ✅ FIX: Modify system BEFORE building messages
+        if json_mode:
+            system = system + "\nReturn strictly valid JSON."
+
         kwargs = {
             "model": model,
             "messages": [
@@ -45,22 +72,37 @@ def _chat(system: str, user: str, json_mode: bool = False, model: str = "gpt-4.1
                 {"role": "user", "content": user},
             ],
         }
+
+        # ✅ JSON mode (works with Azure GPT-4 deployments)
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
+
         resp = client.chat.completions.create(**kwargs)
-        return resp.choices[0].message.content
+
+        if resp and resp.choices:
+            return resp.choices[0].message.content or ""
+
+        return "[AI Error] Empty response"
+
     except Exception as e:
         return f"[AI Error] {e}"
 
 
-def _chat_json(system: str, user: str, model: str = "gpt-4.1-mini") -> Optional[Dict]:
+def _chat_json(system: str, user: str, model=None) -> Optional[Dict]:
     """Chat call that returns parsed JSON."""
+
+    # ✅ FIX: Resolve model at runtime (not import time)
+    model = model or os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+
     raw = _chat(system, user, json_mode=True, model=model)
+
     if raw is None:
         return None
+
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
+        # ✅ Return structured fallback so UI can handle it
         return {"raw_response": raw}
 
 
@@ -234,18 +276,22 @@ tell the user which tab/step to complete first. Use markdown formatting."""
     client = _get_client()
     if client is None:
         return None
-
     try:
-        messages = [{"role": "system", "content": system}]
+        messages: List[ChatCompletionMessageParam] = [{"role": "system", "content": system}]
         # Add recent chat history (last 10 messages)
         for msg in chat_history[-10:]:
-            messages.append(msg)
+            messages.append(msg)  # type: ignore
         messages.append({"role": "user", "content": user_message})
 
+        model = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+        if not model:
+            return "[AI Error] Missing AZURE_OPENAI_DEPLOYMENT_NAME"
+
         resp = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model=model,
             messages=messages,
         )
+        
         return resp.choices[0].message.content
     except Exception as e:
         return f"[AI Error] {e}"

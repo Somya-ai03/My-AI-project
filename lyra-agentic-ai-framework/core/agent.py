@@ -1,30 +1,29 @@
-# core/agent.py
-
 import json
 import os
-from typing import Dict, Any, List
-from openai import OpenAI
+from typing import Dict, Any
+from openai import AzureOpenAI
 
 
 def get_openai_client():
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY environment variable is not set. "
-            "Configure it in HuggingFace Spaces Secrets or your .env file."
-        )
-    return OpenAI(api_key=api_key)
+    api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+
+    if not api_key or not endpoint:
+        raise ValueError("Azure OpenAI config missing")
+
+    return AzureOpenAI(
+        api_key=api_key,
+        api_version="2024-02-15-preview",
+        azure_endpoint=endpoint
+    )
 
 
-def agent_review_mapping(
-    mapping: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Agent validates extracted mapping.
-    NO creativity -- just verification.
-    """
-
+def agent_review_mapping(mapping: Dict[str, Any]) -> Dict[str, Any]:
     client = get_openai_client()
+
+    deployment = os.getenv("AZURE_CHAT_DEPLOYMENT")
+    if not deployment:
+        return {"error": "Missing deployment name"}
 
     system = """
 Return ONLY JSON.
@@ -45,7 +44,7 @@ Respond with:
 """
 
     resp = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model=deployment,  # ✅ IMPORTANT (Azure uses deployment)
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": json.dumps(mapping, indent=2)},

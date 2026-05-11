@@ -6,8 +6,12 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
+import os
 from dotenv import load_dotenv
-load_dotenv()
+
+load_dotenv()  
+
+
 
 # -------------------------------------------------
 # ROOT PATH (portable)
@@ -27,7 +31,7 @@ ASSETS_DIR.mkdir(parents=True, exist_ok=True)  # ensure assets folder exists
 # IMPORT CORE
 # -------------------------------------------------
 from core.scenarios.sql_mapping_builder import build_sql_mapping
-from core.scenarios.target_scenarios_builder import build_target_scenarios
+from core.scenarios.target_scenarios_builder import build_target_scenarios, merge_update_scenarios
 from core.scenarios.ai_scenario_manager import (
     save_mapping_snapshot,
     load_mapping_snapshot,
@@ -259,26 +263,7 @@ convert_png_to_jpg("assets/with_ai.png", "assets/with_ai.jpg")
 print("✅ Conversion complete")
 
 
-#------------------------------------------------------
-from azure.storage.blob import BlobServiceClient
-import pandas as pd
-import io
-import os
-import streamlit as st
 
-@st.cache_data
-def load_from_blob(file_name):
-    connection_string = os.getenv("AZURESTORAGE_CONNECTION_STRING")
-    if connection_string is None:
-        raise ValueError("AZURESTORAGE_CONNECTION_STRING environment variable is not set")
-    
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    container_client = blob_service_client.get_container_client("lyra-data")
-    
-    blob_client = container_client.get_blob_client(file_name)
-    data = blob_client.download_blob().readall()
-    
-    return pd.read_csv(io.BytesIO(data))
 
 
 
@@ -337,7 +322,7 @@ with col_ai:
     if ai_available():
         st.markdown('<span class="ai-badge">🤖 AI Active</span>', unsafe_allow_html=True)
     else:
-        st.caption("⚠️ Set OPENAI_API_KEY for AI features")
+        st.caption("⚠️ Set AZURE_OPENAI credentials for AI features")
 
 # -------------------------------------------------
 # SESSION STATE
@@ -385,7 +370,7 @@ with st.sidebar:
     st.markdown("## 🤖 AI Assistant")
 
     if not ai_available():
-        st.info("Set `OPENAI_API_KEY` to enable AI chat")
+        st.info("Set `AZURE_OPENAI_API_KEY` and endpoint to enable AI chat")
     else:
         # Show discovered assets summary
         with st.expander("📁 Discovered Data Assets", expanded=False):
@@ -420,14 +405,23 @@ with st.sidebar:
                 ctx = build_session_context()
                 response = ai_chat(chat_input, ctx, st.session_state.ai_chat_history)
 
-            if response:
-                st.session_state.ai_chat_history.append({"role": "assistant", "content": response})
-                st.rerun()
+                if response:
+                    if isinstance(response, str) and response.startswith("[AI Error]"):
+                      st.error(response)  # 👈 shows clean UI error
+                    else:
+                        st.session_state.ai_chat_history.append({
+                        "role": "assistant",
+                        "content": response
+                    })
+                    st.rerun()
 
         if st.session_state.ai_chat_history:
             if st.button("🗑️ Clear Chat"):
                 st.session_state.ai_chat_history = []
                 st.rerun()
+    
+    if not st.session_state.ai_chat_history:
+       st.caption("💡 Try asking: 'Summarize data quality issues'")
 
 # -------------------------------------------------
 # TABS
@@ -444,7 +438,15 @@ tabs = st.tabs([
 ])
 
 
-
+# -------------------------------------------------
+# AI CONFIG STATUS (ADD THIS)
+# -------------------------------------------------
+with st.expander("🤖 AI Configuration Status", expanded=False):
+    st.write({
+        "API_KEY": "✅" if os.getenv("AZURE_OPENAI_API_KEY") else "❌",
+        "ENDPOINT": "✅" if os.getenv("AZURE_OPENAI_ENDPOINT") else "❌",
+        "DEPLOYMENT": os.getenv("AZURE_CHAT_DEPLOYMENT") or "❌ MISSING"
+    })
 
 # =================================================
 
@@ -514,7 +516,7 @@ with tabs[0]:
     st.subheader("🧱 Tech Stack")
 
     st.markdown("""
-**Streamlit** • **Python** • **Snowflake** • **Azure** • **AI**
+**Streamlit** • **Python** • **Snowflake** • **Microsoft Azure (incl. Azure AI Foundry & AI Services)** 
 """)
 
     st.markdown("---")
@@ -589,8 +591,17 @@ with tabs[1]:
         if st.button("🔬 Run AI Analysis", key="btn_ai_mapping"):
             with st.spinner(ai_status("ai_review", 0)):
                 review = ai_validate_mapping(st.session_state.mapping_extracted)
-                st.session_state.ai_mapping_review = review
 
+                if isinstance(review, str) and review.startswith("[AI Error]"):
+                    st.error(review)
+
+                elif isinstance(review, dict) and "raw_response" in review:
+                    st.error("⚠️ AI did not return valid JSON")
+                    st.code(review["raw_response"])
+
+                else:
+                    st.session_state.ai_mapping_review = review
+                
         review = st.session_state.get("ai_mapping_review")
         if review and isinstance(review, dict):
             # Confidence meter
@@ -917,8 +928,19 @@ with tabs[3]:
 
         st.markdown("### 📦 Scenario Availability")
 
+        just_created = st.session_state.get("just_created_scenarios", False)
+
         if curr_sc:
-            st.success(f"✅ **{len(curr_sc)}** scenarios already exist for `{mapping_version}` → **{new_target}**")
+            if just_created:
+                st.success(
+                f"🆕 **{len(curr_sc)}** scenarios successfully created for `{mapping_version}` → **{new_target}**"
+            )
+                st.session_state.just_created_scenarios = False
+            else:
+                st.success(
+                f"✅ **{len(curr_sc)}** scenarios already exist for `{mapping_version}` → **{new_target}**")
+            
+           
         else:
             prev_ver, _, prev_sc, _ = find_previous_version_scenarios(
                 mapping_version, new_target, scenarios_base
@@ -1016,11 +1038,24 @@ with tabs[3]:
                 build_output_dir.mkdir(parents=True, exist_ok=True)
 
                 try:
+                    MAX_NEW_SCENARIOS = 5
+                   
                     result_df, _, exec_log = build_target_scenarios(
-                        mapping_path=mapping_file,
-                        target_meta=build_meta,
-                        output_dir=build_output_dir,
+                    mapping_path=mapping_file,
+                    target_meta=build_meta,
+                     output_dir=build_output_dir,
                     )
+
+                    # 🔥 LIMIT FIRST
+                    if result_df is not None and not result_df.empty:
+                        result_df = result_df.head(MAX_NEW_SCENARIOS)
+
+                        pk_cols = build_meta.get("business_keys", [])
+
+                        updated_sc, new_sc = merge_update_scenarios(current_sc, result_df, pk_cols)
+
+                    
+
                 except (ValueError, FileNotFoundError) as e:
                     progress.empty()
                     st.error(f"Scenario generation failed: {e}")
@@ -1034,10 +1069,11 @@ with tabs[3]:
                 progress.success("✅ Incremental scenario generation complete")
 
                 all_rows = (
-                    [{"scenario_id": s.get("scenario_id",""), "operation": s.get("operation",""),
-                      "target_table": new_target, "source": "reused"} for s in current_sc]
-                  + (result_df.assign(source="new").to_dict("records") if result_df is not None and not result_df.empty else [])
-                )
+                            [{"scenario_id": s.get("scenario_id",""), "operation": s.get("operation",""),
+                            "target_table": new_target, "source": "updated"} for s in updated_sc]
+                            + [{"scenario_id": s.get("scenario_id",""), "operation": s.get("operation",""),
+                         "target_table": new_target, "source": "new"} for s in new_sc]
+                        )
                 save_execution_log(exec_log, base_scenario_dir)
                 st.session_state.scenario_df              = pd.DataFrame(all_rows)
                 st.session_state.scenario_dir             = base_scenario_dir
@@ -1132,6 +1168,13 @@ with tabs[3]:
                             target_meta=build_meta,
                             output_dir=delta_output_dir,
                         )
+                        pk_cols = build_meta.get("business_keys", [])
+
+                        updated_sc, new_sc = merge_update_scenarios(prev_sc, result_df, pk_cols)
+
+                        updated_count = len(updated_sc)
+                        new_count = len(new_sc)
+
                     except (ValueError, FileNotFoundError) as e:
                         progress.empty()
                         st.error(f"Delta scenario generation failed: {e}")
@@ -1145,9 +1188,11 @@ with tabs[3]:
 
                     all_rows = (
                         [{"scenario_id": s.get("scenario_id",""), "operation": s.get("operation",""),
-                          "target_table": new_target, "source": f"reused_from_{prev_ver}"} for s in prev_sc]
-                      + (result_df.assign(source="new_delta").to_dict("records") if result_df is not None and not result_df.empty else [])
-                    )
+                         "target_table": new_target, "source": "updated"} for s in updated_sc]
+                        + [{"scenario_id": s.get("scenario_id",""), "operation": s.get("operation",""),
+                        "target_table": new_target, "source": "new"} for s in new_sc]
+                        )
+                    
                     save_execution_log(exec_log, base_scenario_dir)
                     st.session_state.scenario_df              = pd.DataFrame(all_rows)
                     st.session_state.scenario_dir             = base_scenario_dir
@@ -1223,7 +1268,8 @@ with tabs[3]:
                 st.markdown("### 🆕 Generated Scenarios")
                 st.dataframe(result_df.head(20), use_container_width=True)
 
-                st.success(f"✅ Loaded {len(scenarios)} scenarios")
+                st.success(f"🆕 Created {len(result_df)} scenarios successfully!")
+                st.session_state.just_created_scenarios = True
                 st.rerun()
 
 
